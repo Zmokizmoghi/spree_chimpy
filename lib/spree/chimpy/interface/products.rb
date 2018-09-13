@@ -70,13 +70,17 @@ module Spree::Chimpy
           id: self.class.mailchimp_product_id(@variant),
           title: @product.name,
           handle: @product.slug,
-          url: self.class.product_url_or_default(@product),
+          url: self.class.product_url(@product),
           variants: all_variants.map { |v| self.class.variant_hash(v) },
           type: taxon.name
         }
-
-        if @product.images.any?
-          data[:image_url] = @product.images.first.attachment.url(:product)
+        begin
+          if @product.images.any?
+            data[:image_url] = 'https://static.matouk.com' + @product.images.first.attachment.url(:product)
+          else
+            data[:image_url] = 'https://static.matouk.com' + @product.variants.sample.images.first.attachment.url(:product)
+          end
+        rescue
         end
 
         if @product.respond_to?(:available_on) && @product.available_on
@@ -90,7 +94,7 @@ module Spree::Chimpy
           id: mailchimp_variant_id(variant),
           title: variant.name,
           sku: variant.sku,
-          url: product_url_or_default(variant.product),
+          url: product_url(variant.product),
           price: variant.price.to_f,
           image_url: variant_image_url(variant) || '',
           inventory_quantity: variant.total_on_hand == Float::INFINITY ? 999 : variant.total_on_hand
@@ -99,21 +103,14 @@ module Spree::Chimpy
 
       def self.variant_image_url(variant)
         if variant.images.any?
-          variant.images.first.attachment.url(:product)
+          'https://static.matouk.com' + variant.images.first.attachment.url(:product)
         elsif variant.product.images.any?
-          variant.product.images.first.attachment.url(:product)
+          'https://static.matouk.com' + variant.product.images.first.attachment.url(:product)
         end
       end
 
-      def self.product_url_or_default(product)
-        if self.respond_to?(:product_url)
-          product_url(product)
-        else
-          URI::HTTP.build({
-            host: Rails.application.routes.default_url_options[:host],
-            :path => "/products/#{product.slug}"}
-          ).to_s
-        end
+      def self.product_url(product)
+        'https://matouk.com/products/' + product.slug
       end
     end
   end

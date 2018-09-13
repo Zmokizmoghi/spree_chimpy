@@ -16,8 +16,8 @@ module Spree::Chimpy
         customer_id || upsert_customer
       end
 
-      def self.mailchimp_customer_id(user_id)
-        "customer_#{user_id}"
+      def self.mailchimp_customer_id(email)
+        "customer_#{email}"
       end
 
       def customer_id_from_eid(mc_eid)
@@ -38,23 +38,41 @@ module Spree::Chimpy
 
       private
 
-      def upsert_customer
-        return unless @order.user_id
+      def user_attributes
+        user = @order.user
+        address = @order.ship_address
+        { company: address&.company,
+          first_name: user&.first_name,
+          last_name: user&.last_name,
+          address: {
+            address1: address&.address1,
+            address2: address&.address2,
+            city: address&.city,
+            province: address&.state&.name,
+            postal_code: address&.zipcode
+          }.reject{ |k, v| v.nil? || v.empty? }
+        }.reject{ |k, v| v.nil? || v.empty? }
+      end
 
-        customer_id = self.class.mailchimp_customer_id(@order.user_id)
+      def upsert_customer
+        customer_id = self.class.mailchimp_customer_id(@order.email)
+
         begin
           response = store_api_call
             .customers(customer_id)
             .retrieve(params: { "fields" => "id,email_address"})
         rescue Gibbon::MailChimpError => e
           # Customer Not Found, so create them
+          user = @order.user
+          address = @order.ship_address
+
           response = store_api_call
             .customers
             .create(body: {
               id: customer_id,
               email_address: @order.email.downcase,
-              opt_in_status: Spree::Chimpy::Config.subscribe_to_list || false
-            })
+              opt_in_status: Spree::Chimpy::Config.subscribe_to_list || false,
+            }.merge(user_attributes))
         end
         customer_id
       end
