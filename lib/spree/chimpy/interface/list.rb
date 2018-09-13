@@ -61,6 +61,7 @@ module Spree::Chimpy
           response = api_list_call
             .members
             .retrieve(params: { "unique_email_id" => mc_eid, "fields" => "members.id,members.email_address" })
+            .body
 
           member_data = response["members"].first
           member_data["email_address"] if member_data
@@ -76,6 +77,7 @@ module Spree::Chimpy
         begin
           response = api_member_call(email)
             .retrieve(params: { "fields" => "email_address,merge_fields,status"})
+            .body
 
           response = response.symbolize_keys
           response.merge(email: response[:email_address])
@@ -91,6 +93,7 @@ module Spree::Chimpy
         response = api_list_call
           .merge_fields
           .retrieve(params: { "fields" => "merge_fields.tag,merge_fields.name"})
+          .body
         response["merge_fields"].map { |record| record['tag'] }
       end
 
@@ -109,6 +112,7 @@ module Spree::Chimpy
       def find_list_id(name)
         response = api_call
           .retrieve(params: {"fields" => "lists.id,lists.name"})
+          .body
         list = response["lists"].detect { |r| r["name"] == name }
         list["id"] if list
       end
@@ -126,7 +130,7 @@ module Spree::Chimpy
       def create_segment
         log "Creating segment #{@segment_name}"
 
-        result = api_list_call.segments.create(body: { name: @segment_name, static_segment: []})
+        result = api_list_call.segments.create(body: { name: @segment_name, static_segment: []}).body
         @segment_id = result["id"]
       end
 
@@ -134,6 +138,7 @@ module Spree::Chimpy
         response = api_list_call
           .segments
           .retrieve(params: {"fields" => "segments.id,segments.name"})
+          .body
         segment = response["segments"].detect {|segment| segment['name'].downcase == @segment_name.downcase }
 
         segment['id'] if segment
